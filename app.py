@@ -33,7 +33,7 @@ def transform_data(data, transformation):
 
 # Título y descripción de los datos
 st.title('Transformación de Datos para Aumentar la Simetría')
-st.write('Se consideran los siguientes datos, correspondientes a la tasa de incrementos de precios al consumo, en 2015, para 25 países de la OCDE:')
+st.write('Se consideran los siguientes datos, correspondientes a la tasa de incrementos de precios al consumo, en 2015, para 24 países de la OCDE:')
 st.write('2.2, 7.6, 2.9, 4.6, 4.1, 3.9, 7.4, 3.2, 5.1, 5.3, 20.1, 2.3, 5.5, 32.7, 9.1, 1.7, 3.2, 5.8, 16.3, 15.9, 5.9, 6.7, 3.4, 40.5')
 st.write('Transforma los datos para aumentar la simetría.')
 
