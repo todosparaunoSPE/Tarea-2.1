@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Aug  2 14:50:10 2024
+Created on Tue Aug  6 12:17:51 2024
 
 @author: jperezr
 """
@@ -33,7 +33,7 @@ def transform_data(data, transformation):
 
 # Título y descripción de los datos
 st.title('Transformación de Datos para Aumentar la Simetría')
-st.write('Se consideran los siguientes datos, correspondientes a la tasa de incrementos de precios al consumo, en 2015, para 24 países de la OCDE:')
+st.write('Se consideran los siguientes datos, correspondientes a la tasa de incrementos de precios al consumo, en 2015, para 25 países de la OCDE:')
 st.write('2.2, 7.6, 2.9, 4.6, 4.1, 3.9, 7.4, 3.2, 5.1, 5.3, 20.1, 2.3, 5.5, 32.7, 9.1, 1.7, 3.2, 5.8, 16.3, 15.9, 5.9, 6.7, 3.4, 40.5')
 st.write('Transforma los datos para aumentar la simetría.')
 
@@ -93,11 +93,33 @@ transformation = st.selectbox('Selecciona una transformación:', ['y = x^2', 'y 
 transformed_data = transform_data(df['Tasa de Incremento'], transformation)
 df['Datos Transformados'] = transformed_data
 
-# Crear intervalos y calcular estadísticas
+# Crear intervalos y calcular estadísticas para datos transformados
 num_bins = 10  # Número de intervalos
 freq, bins = np.histogram(transformed_data, bins=num_bins)
 intervals = [(bins[i], bins[i+1]) for i in range(len(bins)-1)]
 
+# Crear DataFrame para los datos transformados
+df_transformed_intervals = pd.DataFrame({
+    'Intervalo': [f'{interval[0]:.2f} - {interval[1]:.2f}' for interval in intervals],
+    'Frecuencia': freq,
+    'Tamaño del Intervalo': np.diff(bins)
+})
+
+# Mostrar los datos transformados
+st.subheader('Datos Transformados')
+st.write(df)
+
+# Graficar datos transformados
+st.subheader('Distribución de Datos Transformados')
+fig, ax = plt.subplots()
+sns.histplot(df['Datos Transformados'], kde=True, ax=ax)
+st.pyplot(fig)
+
+# Mostrar frecuencias de los datos transformados
+st.subheader('Frecuencias de Datos Transformados')
+st.write(df_transformed_intervals)
+
+# Calcular y mostrar estadísticas de intervalos
 medians = []
 means = []
 variances = []
@@ -135,38 +157,46 @@ df_intervals = pd.DataFrame({
     'Estadístico de Shapiro-Wilk': shapiro_stats
 })
 
-# Visualizar datos transformados y frecuencias
-st.subheader('Datos Transformados y Frecuencias')
-st.write(df)
-st.write(df_intervals)
+# Reemplazar caracteres inválidos en el nombre de la hoja
+def sanitize_sheet_name(name):
+    invalid_chars = ['/', '\\', '?', '*', '[', ']']
+    for char in invalid_chars:
+        name = name.replace(char, '_')
+    return name
 
-# Graficar datos transformados
-st.subheader('Distribución de Datos Transformados')
-fig, ax = plt.subplots()
-sns.histplot(df['Datos Transformados'], kde=True, ax=ax)
-st.pyplot(fig)
+# Guardar los datos en un archivo Excel
+filename = 'datos_transformados.xlsx'
+with pd.ExcelWriter(filename) as writer:
+    # Escribir datos originales
+    df.to_excel(writer, sheet_name='Datos Originales', index=False)
+    
+    # Escribir datos transformados
+    df_intervals.to_excel(writer, sheet_name=sanitize_sheet_name(transformation), index=False)
 
-# Calcular y mostrar sesgo transformado
-transformed_skewness = skew(transformed_data)
-st.write(f'Sesgo de los datos transformados: {transformed_skewness:.2f}')
+# Mostrar el enlace de descarga
+with open(filename, 'rb') as f:
+    st.download_button(
+        label="Descargar Datos Transformados",
+        data=f,
+        file_name=filename,
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
-# Evaluar normalidad con Shapiro-Wilk para datos transformados
-shapiro_stat, p = shapiro(transformed_data)
-st.write(f'Estadístico de Shapiro-Wilk para datos transformados: {shapiro_stat:.2f}, p-valor: {p:.2f}')
+# Determinar la mejor transformación
+def find_best_transformation(data):
+    transformations = ['y = x^2', 'y = sqrt(x)', 'y = ln(x)', 'y = 1/x']
+    best_transformation = None
+    best_p_value = 0
+    
+    for transformation in transformations:
+        transformed_data = transform_data(data, transformation)
+        _, p_value = shapiro(transformed_data)
+        if p_value > best_p_value:
+            best_p_value = p_value
+            best_transformation = transformation
+    
+    return best_transformation, best_p_value
 
-# Analizar cuál transformación ajusta mejor a la normalidad
-transformations = ['y = x^2', 'y = sqrt(x)', 'y = ln(x)', 'y = 1/x']
-best_transformation = None
-best_p_value = -np.inf
-
-for trans in transformations:
-    trans_data = transform_data(df['Tasa de Incremento'], trans)
-    if len(trans_data) >= 3:
-        _, p_val = shapiro(trans_data)
-        if p_val > best_p_value:
-            best_p_value = p_val
-            best_transformation = trans
-
-# Botón para mostrar la mejor transformación
 if st.button('Mostrar Mejor Transformación'):
-    st.write(f'La transformación que mejor ajusta los datos a una distribución normal es: {best_transformation} (p-valor: {best_p_value:.2f})')
+    best_transformation, best_p_value = find_best_transformation(df['Tasa de Incremento'])
+    st.write(f'La mejor transformación es: {best_transformation} con un p-valor de {best_p_value:.4f}')
